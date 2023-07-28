@@ -120,8 +120,8 @@ class DouYu(Base):
         self.t13 = str(int((time.time() * 1000)))
 
         self.s = requests.Session()
-        # self.res = self.s.get('https://m.douyu.com/' + str(self.rid)).text
-        self.res = self.s.get('https://www.douyu.com/' + str(self.rid)).text
+        self.res = self.s.get('https://m.douyu.com/' + str(self.rid)).text
+        # self.res = self.s.get('https://www.douyu.com/' + str(self.rid)).text
         result = re.search(r'rid":(\d{1,8}),"vipId', self.res)
 
         if result:
