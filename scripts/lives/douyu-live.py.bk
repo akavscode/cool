@@ -6,6 +6,7 @@ import json
 import sys
 import execjs
 import requests
+from urllib.parse import urlparse
 
 from scripts.base import Base
 
@@ -19,12 +20,6 @@ class DouYu(Base):
     def __init__(self, rid):
         super(Base, self).__init__()
         self.rid = rid
-        
-        self.did = '10000000000000000000000000001501'
-        self.t10 = str(int(time.time()))
-        self.t13 = str(int((time.time() * 1000)))
-
-        self.s = requests.Session()
 
     @staticmethod
     def md5(data):
@@ -44,12 +39,12 @@ class DouYu(Base):
         }
         res = self.s.post(url, headers=headers, data=data).json()
         error = res['error']
-        # data = res['data']
-        # if data:
-            # rtmp_live = data['rtmp_live']
-            # key = re.search(r'(\d{1,8}[0-9a-zA-Z]+)_?\d{0,4}(/playlist|.m3u8)', rtmp_live).group(1)
-        # return error, key
-        return error
+        data = res['data']
+        key = ''
+        if data:
+            rtmp_live = data['rtmp_live']
+            key = re.search(r'(\d{1,8}[0-9a-zA-Z]+)_?\d{0,4}(/playlist|.m3u8)', rtmp_live).group(1)
+        return error, key
 
     def get_js(self):
         result = re.search(r'(function ub98484234.*)\s(var.*)', self.res).group()
@@ -69,37 +64,33 @@ class DouYu(Base):
         params += '&ver=219032101&rid={}&rate=-1'.format(self.rid)
 
         url = 'https://m.douyu.com/api/room/ratestream'
-        res = self.s.post(url, params=params).json()
+        res = self.s.post(url, params=params).text
         # key = re.search(r'(\d{1,8}[0-9a-zA-Z]+)_?\d{0,4}(.m3u8|/playlist)', res).group(1)
-        key = res['data']['url']
+        key = res
 
         return key
-
-    def get_pc_js(self, cdn='ws-h5', rate=0):
+    # def get_pc_js(self, cdn='ws-h5', rate=0):
         
-        res = self.s.get('https://www.douyu.com/' + str(self.rid)).text
-        result = re.search(r'(vdwdae325w_64we[\s\S]*function ub98484234[\s\S]*?)function', res).group(1)
-        func_ub9 = re.sub(r'eval.*?;}', 'strc;}', result)
-        js = execjs.compile(func_ub9)
-        res = js.call('ub98484234')
+        # result = re.search(r'(vdwdae325w_64we[\s\S]*function ub98484234[\s\S]*?)function', res).group(1)
+        # func_ub9 = re.sub(r'eval.*?;}', 'strc;}', result)
+        # js = execjs.compile(func_ub9)
+        # res = js.call('ub98484234')
 
-        v = re.search(r'v=(\d+)', res).group(1)
-        rb = DouYu.md5(self.rid + self.did + self.t10 + v)
+        # v = re.search(r'v=(\d+)', res).group(1)
+        # rb = DouYu.md5(self.rid + self.did + self.t10 + v)
 
-        func_sign = re.sub(r'return rt;}\);?', 'return rt;}', res)
-        func_sign = func_sign.replace('(function (', 'function sign(')
-        func_sign = func_sign.replace('CryptoJS.MD5(cb).toString()', '"' + rb + '"')
+        # func_sign = re.sub(r'return rt;}\);?', 'return rt;}', res)
+        # func_sign = func_sign.replace('(function (', 'function sign(')
+        # func_sign = func_sign.replace('CryptoJS.MD5(cb).toString()', '"' + rb + '"')
 
-        js = execjs.compile(func_sign)
-        params = js.call('sign', self.rid, self.did, self.t10)
+        # js = execjs.compile(func_sign)
+        # params = js.call('sign', self.rid, self.did, self.t10)
 
-        params += '&cdn={}&rate={}'.format(cdn, rate)
-        url = 'https://www.douyu.com/lapi/live/getH5Play/{}'.format(self.rid)
-        res = self.s.post(url, params=params).json()
-        
-        key = res['data']['rtmp_url'] + '/' + res['data']['rtmp_live']
+        # params += '&cdn={}&rate={}'.format(cdn, rate)
+        # url = 'https://www.douyu.com/lapi/live/getH5Play/{}'.format(self.rid)
+        # res = self.s.post(url, params=params).json()
 
-        return key
+        # return res
         
     # def get_js(self):
         # result = re.search(r'(function ub98484234.*)\s(var.*)', self.res).group()
@@ -125,17 +116,23 @@ class DouYu(Base):
         # return key
 
     def get_real_url(self):
-        
+        self.did = '10000000000000000000000000001501'
+        self.t10 = str(int(time.time()))
+        self.t13 = str(int((time.time() * 1000)))
+
+        self.s = requests.Session()
         self.res = self.s.get('https://m.douyu.com/' + str(self.rid)).text
+        # self.res = self.s.get('https://www.douyu.com/' + str(self.rid)).text
         result = re.search(r'rid":(\d{1,8}),"vipId', self.res)
 
         if result:
             self.rid = result.group(1)
         else:
             return '房间号错误'
-        error = self.get_pre()
-        
-        if error == 102:
+        error, key = self.get_pre()
+        if error == 0:    # 如果 error 为 0, 用 get_pre() 里的 key
+            pass
+        elif error == 102:
             return '房间不存在'
         elif error == 104:
             return '房间未开播'
