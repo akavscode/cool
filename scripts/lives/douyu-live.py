@@ -140,7 +140,7 @@ class DouYu(Base):
         elif error == 104:
             return '房间未开播'
         else:
-            key = self.get_js()
+            key = self.get_pc_js()
 
         # return json.dumps(res)
         return key
